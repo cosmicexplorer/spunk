@@ -1,0 +1,28 @@
+{
+  "name": "spunk",
+  "version": "0.0.0",
+  "description": "Parser generator.",
+  "license": "GPL-3.0",
+  "author": "Danny McClanahan <danieldmcclanahan@gmail.com>",
+  "scripts": {
+    "prepublish": "make check",
+    "test": "make check"
+  },
+  "main": "",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/cosmicexplorer/spunk.git"
+  },
+  "keywords": [
+    "parse",
+    "parser",
+    "generator"
+  ],
+  "devDependencies": {
+    "babel": "^5.6.14",
+    "coffee-script": "^1.9.3"
+  },
+  "dependencies": {
+    "babel-runtime": "^5.6.15"
+  }
+}

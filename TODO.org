@@ -1,0 +1,10 @@
+#+TITLE: spunk is literally the best name ever
+
+* strategy
+** specify lexing and parsing in same objects, perform in one swoop
+** can parse more than just text: can parse arbitrary javascript objects
+** specify method for putting together structure from inputs so semantic actions aren't required
+** but also have plenty of hooks at both lexing and parsing stages
+** user gives NFAs -> turn into DFAs?
+** user specifies as string -> we parse into grammar
+*** lol let's make a regex parser
