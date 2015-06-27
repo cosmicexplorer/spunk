@@ -4,11 +4,7 @@
   "description": "Parser generator.",
   "license": "GPL-3.0",
   "author": "Danny McClanahan <danieldmcclanahan@gmail.com>",
-  "scripts": {
-    "prepublish": "make check",
-    "test": "make check"
-  },
-  "main": "",
+  "main": "parser-generator.js",
   "repository": {
     "type": "git",
     "url": "git://github.com/cosmicexplorer/spunk.git"
