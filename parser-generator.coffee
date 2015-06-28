@@ -6,8 +6,10 @@ in can be whatever lol
     # do stuff
     return result
 
-result is any of three forms:
-yes -> parsed fully, move onto next in sequence or collect
+result is any of four forms:
+yes -> parsed fully including char, move onto next in sequence or collect
+'' -> parsed fully NOT including char, move onto next in sequence or
+  collect, and retry current char
 no -> parse failed
 this -> intermediate stage of parsing
 
@@ -37,6 +39,17 @@ class NumParser
 
   finishable: -> yes
 
+class LetterParser
+  check: (ch) ->
+    if ch.match /[a-zA-Z]/
+      @collect = -> ch
+      yes
+    else
+      @err = -> ch
+      no
+
+  finishable: -> yes
+
 class MetaParserBase
   # @p is inner parser
   constructor: (collect, err) ->
@@ -45,16 +58,17 @@ class MetaParserBase
     @errFun = err?.bind(@)
 
   collect: ->
+    @cleanup?()
     if @collectFun
       @collectFun()
     else
-      @inputs
+      @inputs.join ''
 
   err: ->
     if @errFun
       @errFun()
     else
-      @inputs
+      @inputs.join ''
 
 # make lowEnd 0 and highEnd null for *
 # make lowEnd 0 and highEnd 1 for ?
@@ -77,7 +91,7 @@ class MakeRange extends MetaParserBase
     else if res is no
       if @lowEnd and @inputs.length < @lowEnd
         no
-      else yes
+      else ''
     else @
 
   finishable: ->
@@ -99,7 +113,75 @@ for ch in '1234'
 if p.finishable()
   console.log p.collect()
 else
-  console.log p.err()
+  console.error p.err()
+
+lp = new MakeRange new LetterParser, 1, null, -> @inputs.join '-'
+
+lRes = no
+for ch in 'abcd'
+  lRes = lp.check ch
+  if lRes is no
+    console.error lp.err()
+    process.exit 1
+  else if lRes is yes
+    console.log lp.collect()
+    process.exit 0
+
+if lp.finishable()
+  console.log lp.collect()
+else
+  console.error lp.err()
 
 # next let's do functions to transform string literals, then seq, then or, then
 # (from that) regex transformation
+
+class MakeSeq extends MetaParserBase
+  constructor: (@pArr, collect, err) ->
+    super collect, err
+    @curParserIndex = 0
+
+  check: (ch) ->
+    curParser = @pArr[@curParserIndex]
+    res = curParser.check ch
+    if res is yes
+      if @cleanup() then @ else yes
+    else if res is no
+      @cleanup()
+      no
+    else if res is ''
+      if @cleanup() then @check ch else ''
+    else @
+
+  cleanup: ->
+    if @curParserIndex < @pArr.length
+      curParser = @pArr[@curParserIndex]
+      @inputs.push curParser.collect()
+      ++@curParserIndex
+      return @curParserIndex < @pArr.length
+    else no
+
+  finishable: ->
+    @curParserIndex is @pArr.length - 1 and @pArr[@curParserIndex].finishable()
+
+intThenWordParser =
+  new MakeSeq([
+    new MakeRange new NumParser, 1, null
+    new MakeRange new LetterParser, 1, null
+    ],
+    # @inputs is an array of two arrays
+    -> @inputs.join '-')
+
+newRes = no
+for ch in '1234abc'
+  newRes = intThenWordParser.check ch
+  if newRes is no
+    console.error intThenWordParser.err()
+    process.exit 1
+  else if newRes is yes
+    console.log intThenWordParser.collect()
+    process.exit 0
+
+if intThenWordParser.finishable()
+  console.log intThenWordParser.collect()
+else
+  console.error intThenWordParser.err()
