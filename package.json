@@ -15,10 +15,8 @@
     "generator"
   ],
   "devDependencies": {
-    "babel": "^5.6.14",
     "coffee-script": "^1.9.3"
   },
   "dependencies": {
-    "babel-runtime": "^5.6.15"
   }
 }

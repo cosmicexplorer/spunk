@@ -6,5 +6,11 @@
 ** specify method for putting together structure from inputs so semantic actions aren't required
 ** but also have plenty of hooks at both lexing and parsing stages
 ** user gives NFAs -> turn into DFAs?
+- this is hard to do when we allow for specifying arbitrary "check" functions
+  - arbitrary "collect" functions are fine though, which is nice
+- however, for checker functions composed of simple strings, we may be able to turn *these* into DFAs
+  - if we decompose regexes into a net of checker functions for simple strings, then they too can be subject to this optimization
+  - this can't be done for context-sensitive portions, because those will need a non-trivial checker function
+  - this is *not* a concern for v1
 ** user specifies as string -> we parse into grammar
 *** lol let's make a regex parser
