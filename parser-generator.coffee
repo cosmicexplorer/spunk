@@ -25,6 +25,16 @@ if there's no more input, check if parsing can be terminated successfully
     # whether the parse completed successfully; we call collect if so. returns
     # yes or no.
     return canBeCompleted
+
+for some parsers, we need to do a few things before collecting
+  cleanup: ->
+    # do whatever
+    # but MAKE SURE IF YOUR PARSER IS IN A COMPLETED STATE THAT CALLING IT AGAIN
+    # WON'T FUCK IT UP (I THINK)
+    return # return whatever you want
+
+convention is that @inputs stores an array of all the inputs; this makes writing
+collect and err functions easier
 ###
 
 # parse single numbers (primitive?)
@@ -34,7 +44,7 @@ class NumParser
       @collect = -> ch
       yes
     else
-      @err = -> ch
+      @error = -> ch
       no
 
   finishable: -> yes
@@ -45,17 +55,17 @@ class LetterParser
       @collect = -> ch
       yes
     else
-      @err = -> ch
+      @error = -> ch
       no
 
   finishable: -> yes
 
 class MetaParserBase
   # @p is inner parser
-  constructor: (collect, err) ->
+  constructor: (collect, error) ->
     @inputs = []
     @collectFun = collect?.bind(@)
-    @errFun = err?.bind(@)
+    @errorFun = error?.bind(@)
 
   collect: ->
     @cleanup?()
@@ -65,8 +75,8 @@ class MetaParserBase
       @inputs.join ''
 
   err: ->
-    if @errFun
-      @errFun()
+    if @errorFun
+      @errorFun()
     else
       @inputs.join ''
 
@@ -75,11 +85,11 @@ class MetaParserBase
 # make lowEnd 1 and highEnd null for +
 # make lowEnd 3 and highEnd 5 for {3,5}
 class MakeRange extends MetaParserBase
-  constructor: (@p, @lowEnd, @highEnd, collect, err) ->
+  constructor: (@p, @lowEnd, @highEnd, collect, error) ->
     if (@lowEnd and @highEnd and (@lowEnd > @highEnd)) or
        (@highEnd and @highEnd < 1)
       throw new Error "you can't do that"
-    super collect, err
+    super collect, error
 
   check: (ch) ->
     res = @p.check ch
@@ -132,12 +142,9 @@ if lp.finishable()
 else
   console.error lp.err()
 
-# next let's do functions to transform string literals, then seq, then or, then
-# (from that) regex transformation
-
 class MakeSeq extends MetaParserBase
-  constructor: (@pArr, collect, err) ->
-    super collect, err
+  constructor: (@pArr, collect, error) ->
+    super collect, error
     @curParserIndex = 0
 
   check: (ch) ->
@@ -172,6 +179,7 @@ intThenWordParser =
     -> @inputs.join '-')
 
 newRes = no
+# play with the below; try making it incorrect or longer-than-correct!
 for ch in '1234abc'
   newRes = intThenWordParser.check ch
   if newRes is no
@@ -180,8 +188,25 @@ for ch in '1234abc'
   else if newRes is yes
     console.log intThenWordParser.collect()
     process.exit 0
+  else if newRes is ''
+    console.error "lol"
+    console.log intThenWordParser.collect()
+    process.exit 0
 
 if intThenWordParser.finishable()
   console.log intThenWordParser.collect()
 else
   console.error intThenWordParser.err()
+
+class SpecificLetterParser
+  constructor: (@letter) ->
+
+  check: (ch) -> ch is @letter
+
+  finishable: -> yes
+
+# takes a string literal and forms a parser which recognizes it
+TransformStringLiteral = (str) ->
+  new MakeSeq str.split('').map (ch) -> new SpecificLetterParser ch
+
+# next let's do or, then (from that) regex transformation (!!!)
