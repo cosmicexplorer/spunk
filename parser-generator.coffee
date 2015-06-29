@@ -68,7 +68,7 @@ class LetterParser
 
 class MetaParserBase
   # @p is inner parser
-  constructor: (collect, error) ->
+  constructor: (@p, collect, error, @opts) ->
     @collectFun = collect?.bind(@)
     @errorFun = error?.bind(@)
     @reset()
@@ -94,11 +94,11 @@ class MetaParserBase
 # make lowEnd 1 and highEnd null for +
 # make lowEnd 3 and highEnd 5 for {3,5}
 class MakeRange extends MetaParserBase
-  constructor: (@p, @lowEnd, @highEnd, collect, error) ->
+  constructor: (parser, @lowEnd, @highEnd, collect, error) ->
     if (@lowEnd and @highEnd and (@lowEnd > @highEnd)) or
        (@highEnd and @highEnd < 1)
       throw new Error "you can't do that"
-    super collect, error
+    super parser, collect, error
     @reset()
 
   reset: ->
@@ -117,6 +117,12 @@ class MakeRange extends MetaParserBase
       if @lowEnd and @inputs.length < @lowEnd
         no
       else ''
+    else if res is ''
+      @inputs.push @p.collect()
+      @p.reset?()
+      if @highEnd and @inputs.length is @highEnd
+        ''
+      else @check ch
     else @
 
   finishable: ->
@@ -158,18 +164,18 @@ else
   console.error lp.err()
 
 class MakeSeq extends MetaParserBase
-  constructor: (@pArr, collect, error) ->
-    super collect, error
+  constructor: (parserArr, collect, error) ->
+    super parserArr, collect, error
     @reset()
 
   reset: ->
     @curParserIndex = 0
-    for p in @pArr
+    for p in @p
       p.reset?()
     super()
 
   check: (ch) ->
-    curParser = @pArr[@curParserIndex]
+    curParser = @p[@curParserIndex]
     res = curParser.check ch
     if res is yes
       if @cleanup() then @ else yes
@@ -184,15 +190,15 @@ class MakeSeq extends MetaParserBase
     else @
 
   cleanup: ->
-    if @curParserIndex < @pArr.length
-      curParser = @pArr[@curParserIndex]
+    if @curParserIndex < @p.length
+      curParser = @p[@curParserIndex]
       @inputs.push curParser.collect()
       ++@curParserIndex
-      return @curParserIndex < @pArr.length
+      return @curParserIndex < @p.length
     else no
 
   finishable: ->
-    @curParserIndex is @pArr.length - 1 and @pArr[@curParserIndex].finishable()
+    @curParserIndex is @p.length - 1 and @p[@curParserIndex].finishable()
 
 intThenWordParser =
   new MakeSeq([
@@ -236,10 +242,23 @@ TransformStringLiteral = (str) ->
 
 # next let's do or, then (from that) regex transformation (!!!)
 class MakeOr extends MetaParserBase
-  constructor: (@pChoices, collect, error) ->
-    super collect, error
+  constructor: (parserChoices, collect, error, opts) ->
+    # opts are an object with the key "precedence" and the value a string:
+    # "sequential" -> favor the parser that comes first in the list
+    # "shortest" -> favor the parser that is parsed fully first
+    # "longest" -> favor the parser that is parsed fully last
+    # it defaults to "longest", to act like a typical lexer
+    # TODO: refactor this to use symbols instead of strings
+    super parserChoices, collect, error, opts
+    @precedence = opts?.precedence or "longest"
+    @reset()
 
   check: (ch) ->
+    
+
+  reset: ->
+    @curParsers = @p.slice() # clone array
+    super()
 
   # need to override this
   collect: ->
