@@ -33,6 +33,12 @@ for some parsers, we need to do a few things before collecting
     # WON'T FUCK IT UP (I THINK)
     return # return whatever you want
 
+after completion, some parsers need to reset some internal state
+  reset: ->
+    # make things just like new
+    # if you have this, try to call it in the constructor so code isnt' repeated
+    return # return whatever
+
 convention is that @inputs stores an array of all the inputs; this makes writing
 collect and err functions easier
 ###
@@ -63,9 +69,9 @@ class LetterParser
 class MetaParserBase
   # @p is inner parser
   constructor: (collect, error) ->
-    @inputs = []
     @collectFun = collect?.bind(@)
     @errorFun = error?.bind(@)
+    @reset()
 
   collect: ->
     @cleanup?()
@@ -73,6 +79,9 @@ class MetaParserBase
       @collectFun()
     else
       @inputs.join ''
+
+  reset: ->
+    @inputs = []
 
   err: ->
     if @errorFun
@@ -90,11 +99,17 @@ class MakeRange extends MetaParserBase
        (@highEnd and @highEnd < 1)
       throw new Error "you can't do that"
     super collect, error
+    @reset()
+
+  reset: ->
+    @p.reset?()
+    super()
 
   check: (ch) ->
     res = @p.check ch
     if res is yes
       @inputs.push @p.collect()
+      @p.reset?()
       if @highEnd and @inputs.length is @highEnd
         yes
       else @
@@ -145,18 +160,27 @@ else
 class MakeSeq extends MetaParserBase
   constructor: (@pArr, collect, error) ->
     super collect, error
+    @reset()
+
+  reset: ->
     @curParserIndex = 0
+    for p in @pArr
+      p.reset?()
+    super()
 
   check: (ch) ->
     curParser = @pArr[@curParserIndex]
     res = curParser.check ch
     if res is yes
       if @cleanup() then @ else yes
+      curParser.reset?()
     else if res is no
       @cleanup()
+      curParser.reset?()
       no
     else if res is ''
       if @cleanup() then @check ch else ''
+      curParser.reset?()
     else @
 
   cleanup: ->
@@ -206,7 +230,18 @@ class SpecificLetterParser
   finishable: -> yes
 
 # takes a string literal and forms a parser which recognizes it
+# TODO: add this to MetaParserBase ctor
 TransformStringLiteral = (str) ->
   new MakeSeq str.split('').map (ch) -> new SpecificLetterParser ch
 
 # next let's do or, then (from that) regex transformation (!!!)
+class MakeOr extends MetaParserBase
+  constructor: (@pChoices, collect, error) ->
+    super collect, error
+
+  check: (ch) ->
+
+  # need to override this
+  collect: ->
+
+  finishable: ->
