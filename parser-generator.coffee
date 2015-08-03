@@ -11,7 +11,7 @@ yes -> parsed fully including char, move onto next in sequence or collect
 '' -> parsed fully NOT including char, move onto next in sequence or
   collect, and retry current char
 no -> parse failed
-this -> intermediate stage of parsing
+@ -> intermediate stage of parsing
 
 when finished parsing, return something
   collect: (obj) ->
@@ -29,8 +29,8 @@ if there's no more input, check if parsing can be terminated successfully
 for some parsers, we need to do a few things before collecting
   cleanup: ->
     # do whatever
-    # but MAKE SURE IF YOUR PARSER IS IN A COMPLETED STATE THAT CALLING IT AGAIN
-    # WON'T FUCK IT UP (I THINK)
+    # but MAKE SURE IF YOUR PARSER IS IN A COMPLETED STATE SUCH THAT CALLING IT
+    # AGAIN WON'T FUCK IT UP (I THINK)
     return # return whatever you want
 
 after completion, some parsers need to reset some internal state
@@ -129,6 +129,7 @@ class MakeRange extends MetaParserBase
     @inputs.length >= @lowEnd and @p.finishable()
 
 # this emulates the + operator
+# /[0-9]+/
 p = new MakeRange new NumParser, 1, null, -> JSON.parse @inputs.join('')
 
 res = no
@@ -146,6 +147,7 @@ if p.finishable()
 else
   console.error p.err()
 
+# /[a-zA-Z]+/
 lp = new MakeRange new LetterParser, 1, null, -> @inputs.join '-'
 
 lRes = no
@@ -235,6 +237,8 @@ class SpecificLetterParser
 
   finishable: -> yes
 
+# /[0-9]+|([0-9]+)?\.([0-9]+)/ -> ideal double regex
+
 # takes a string literal and forms a parser which recognizes it
 # TODO: add this to MetaParserBase ctor
 TransformStringLiteral = (str) ->
@@ -248,13 +252,12 @@ class MakeOr extends MetaParserBase
     # "shortest" -> favor the parser that is parsed fully first
     # "longest" -> favor the parser that is parsed fully last
     # it defaults to "longest", to act like a typical lexer
-    # TODO: refactor this to use symbols instead of strings
     super parserChoices, collect, error, opts
     @precedence = opts?.precedence or "longest"
     @reset()
 
   check: (ch) ->
-    
+
 
   reset: ->
     @curParsers = @p.slice() # clone array
@@ -264,3 +267,5 @@ class MakeOr extends MetaParserBase
   collect: ->
 
   finishable: ->
+
+TransformRegexLiteral = (reg) ->
